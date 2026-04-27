@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobador de Números Primos</title>
+    <!-- Se incluye Tailwind CSS a través de CDN para estilos modernos y responsivos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Pequeñas animaciones para mejorar la experiencia de usuario */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Estilos Neón y Animaciones */
+        .neon-text { text-shadow: 0 0 5px #0ff, 0 0 10px #0ff, 0 0 20px #0ff; color: #fff; }
+        .neon-box { box-shadow: 0 0 10px #4f46e5, 0 0 20px #4f46e5 inset; border-color: #4f46e5; }
+        .neon-success { box-shadow: 0 0 10px #22c55e, 0 0 20px #22c55e inset; border-color: #22c55e; }
+        .neon-error { box-shadow: 0 0 10px #ef4444, 0 0 20px #ef4444 inset; border-color: #ef4444; }
+        
+        @keyframes floatUp {
+            0% { transform: translateY(110vh) rotate(0deg); opacity: 0.8; }
+            100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+        }
+        @keyframes fallDown {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+        }
+        .bg-number { position: absolute; animation: floatUp linear infinite; color: rgba(0, 255, 255, 0.3); font-weight: bold; text-shadow: 0 0 5px #0ff; user-select: none; z-index: 0; }
+        .particle { position: absolute; animation: fallDown linear forwards; z-index: 50; user-select: none; font-size: 2rem; }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4 font-sans overflow-hidden relative text-white">
+
+    <!-- Capas de efectos -->
+    <div id="bg-layer" class="absolute inset-0 pointer-events-none"></div>
+    <div id="fx-layer" class="absolute inset-0 pointer-events-none"></div>
+
+    <div class="bg-gray-800 rounded-2xl w-full max-w-md p-8 relative z-10 border neon-box transition-all duration-300" id="mainCard">
+        <!-- Encabezado de la aplicación -->
+        <div class="text-center mb-6">
+            <div class="bg-gray-900 text-cyan-400 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-400 shadow-[0_0_15px_#22d3ee]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-white neon-text">Verificador de Primos</h1>
+            <p class="text-gray-400 mt-2 text-sm">Descubre si un número es divisible solo por 1 y por sí mismo.</p>
+        </div>
+
+        <!-- Formulario / Input -->
+        <div class="space-y-4">
+            <div>
+                <label for="numberInput" class="block text-sm font-medium text-gray-300 mb-1">Ingresa un número entero</label>
+                <input 
+                    type="number" 
+                    id="numberInput" 
+                    class="w-full px-4 py-3 bg-gray-900 border border-cyan-500 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 outline-none transition-colors text-lg text-white shadow-[0_0_10px_rgba(34,211,238,0.2)]"
+                    placeholder="Ej. 17"
+                    min="0"
+                >
+            </div>
+            
+            <button 
+                id="checkButton"
+                class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg shadow-[0_0_15px_rgba(34,211,238,0.5)] transition-all duration-200"
+            >
+                Comprobar Número
+            </button>
+        </div>
+
+        <!-- Área de resultados -->
+        <div id="resultArea" class="mt-6 hidden">
+            <div id="resultBox" class="p-4 rounded-lg text-center font-medium fade-in border bg-gray-900">
+                <p id="resultText" class="text-lg"></p>
+                <p id="resultDetail" class="text-sm mt-1 opacity-80"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lógica de la aplicación en JavaScript -->
+    <script>
+        // Referencias a los elementos del DOM
+        const numberInput = document.getElementById('numberInput');
+        const checkButton = document.getElementById('checkButton');
+        const resultArea = document.getElementById('resultArea');
+        const resultBox = document.getElementById('resultBox');
+        const resultText = document.getElementById('resultText');
+        const resultDetail = document.getElementById('resultDetail');
+
+        // Nuevas referencias para efectos neón
+        const bgLayer = document.getElementById('bg-layer');
+        const fxLayer = document.getElementById('fx-layer');
+        const mainCard = document.getElementById('mainCard');
+
+        // Efecto de números flotantes de fondo
+        function createBgNumbers() {
+            const numCount = 25;
+            for (let i = 0; i < numCount; i++) {
+                const span = document.createElement('span');
+                span.className = 'bg-number';
+                span.textContent = Math.floor(Math.random() * 99) + 1;
+                span.style.left = `${Math.random() * 100}vw`;
+                span.style.fontSize = `${Math.random() * 2 + 1}rem`;
+                span.style.animationDuration = `${Math.random() * 15 + 10}s`;
+                span.style.animationDelay = `${Math.random() * 5}s`;
+                bgLayer.appendChild(span);
+            }
+        }
+        createBgNumbers();
+
+        // Limpiar efectos anteriores
+        function clearEffects() {
+            fxLayer.innerHTML = '';
+            mainCard.classList.remove('neon-success', 'neon-error');
+        }
+
+        // Efecto de celebración (Primos)
+        function showCelebration() {
+            const emojis = ['🎉', '✨', '⭐', '🎊', '🏆'];
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                particle.style.left = `${Math.random() * 100}vw`;
+                particle.style.animationDuration = `${Math.random() * 2 + 2}s`;
+                particle.style.fontSize = `${Math.random() * 1.5 + 1}rem`;
+                fxLayer.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 4000);
+            }
+        }
+
+        // Efecto de error (No Primos)
+        function showError() {
+            const emojis = ['❌', '🔴', '👎', '🚫', '💥'];
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                particle.style.left = `${Math.random() * 100}vw`;
+                particle.style.animationDuration = `${Math.random() * 2 + 2}s`;
+                particle.style.fontSize = `${Math.random() * 1.5 + 1}rem`;
+                fxLayer.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 4000);
+            }
+        }
+
+        // Función optimizada para verificar si un número es primo
+        function checkPrime(num) {
+            if (num <= 1) {
+                return { isPrime: false, detail: "Los números primos deben ser enteros mayores que 1." };
+            }
+            if (num === 2 || num === 3) {
+                return { isPrime: true, detail: "Es divisible únicamente por 1 y por sí mismo." };
+            }
+            if (num % 2 === 0) {
+                return { isPrime: false, detail: "Es un número par (divisible por 2)." };
+            }
+            if (num % 3 === 0) {
+                return { isPrime: false, detail: "Es divisible por 3." };
+            }
+            
+            // Comprobación hasta la raíz cuadrada del número para mayor eficiencia
+            for (let i = 5; i * i <= num; i += 6) {
+                if (num % i === 0) {
+                    return { isPrime: false, detail: `Es divisible por ${i}.` };
+                }
+                if (num % (i + 2) === 0) {
+                    return { isPrime: false, detail: `Es divisible por ${i + 2}.` };
+                }
+            }
+            
+            return { isPrime: true, detail: "Es divisible únicamente por 1 y por sí mismo." };
+        }
+
+        // Función para procesar y mostrar el resultado
+        function processInput() {
+            const inputValue = numberInput.value.trim();
+            
+            // Validar que la entrada no esté vacía y sea un número
+            if (inputValue === '' || isNaN(inputValue)) {
+                showResult('Por favor, ingresa un número válido.', '', 'warning');
+                return;
+            }
+
+            const num = Number(inputValue);
+
+            // Validar que sea un número entero
+            if (!Number.isInteger(num)) {
+                showResult('Debes ingresar un número entero.', 'No se admiten decimales.', 'warning');
+                return;
+            }
+
+            // Realizar la comprobación
+            const result = checkPrime(num);
+
+            // Mostrar el resultado con los estilos adecuados
+            if (result.isPrime) {
+                showResult(`¡El ${num} es un número PRIMO!`, result.detail, 'success');
+            } else {
+                showResult(`El ${num} NO es primo.`, result.detail, 'error');
+            }
+        }
+
+        // Función para actualizar la interfaz gráfica con el resultado
+        function showResult(message, detail, type) {
+            // Limpiar efectos previos
+            clearEffects();
+
+            // Mostrar el área de resultado
+            resultArea.classList.remove('hidden');
+            
+            // Limpiar clases anteriores
+            resultBox.className = 'p-4 rounded-lg text-center font-medium fade-in border bg-gray-900 transition-all duration-300';
+            
+            // Asignar colores y efectos según el tipo de resultado
+            if (type === 'success') {
+                resultBox.classList.add('border-green-400', 'text-green-400', 'shadow-[0_0_15px_#22c55e]');
+                mainCard.classList.add('neon-success');
+                showCelebration();
+            } else if (type === 'error') {
+                resultBox.classList.add('border-red-500', 'text-red-400', 'shadow-[0_0_15px_#ef4444]');
+                mainCard.classList.add('neon-error');
+                showError();
+            } else {
+                resultBox.classList.add('border-yellow-400', 'text-yellow-400', 'shadow-[0_0_15px_#eab308]');
+            }
+
+            // Actualizar textos
+            resultText.textContent = message;
+            resultDetail.textContent = detail;
+        }
+
+        // Event Listeners
+        checkButton.addEventListener('click', processInput);
+
+        // Permitir usar la tecla 'Enter' para comprobar
+        numberInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                processInput();
+            }
+        });
+    </script>
+</body>
+</html>
